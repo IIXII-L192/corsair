@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { generateUUID } from '../../core/utils';
 import type { CorsairEntity } from '../index';
+import { mergeEntityDataFromUnknown } from '../merge-entity-data';
 import type { PluginEntityClient, TypedEntity } from '../orm';
 import type { CorsairKyselyDatabase } from './database';
 import {
@@ -337,16 +338,23 @@ export function createKyselyEntityClient<DataSchema extends ZodTypeAny>(
 			const now = new Date();
 
 			const existing = await baseQuery(db, accountId, entityTypeName)
-				.select('id')
+				.selectAll()
 				.where('entity_id', '=', entityId)
 				.executeTakeFirst();
 
 			if (existing?.id) {
+				const merged = dataSchema.parse(
+					mergeEntityDataFromUnknown(
+						parseJsonLike(existing.data),
+						parsed as Record<string, unknown>,
+					),
+				);
+
 				await db
 					.updateTable('corsair_entities')
 					.set({
 						version,
-						data: parsed as Record<string, unknown>,
+						data: merged as Record<string, unknown>,
 						updated_at: now,
 					})
 					.where('id', '=', existing.id)

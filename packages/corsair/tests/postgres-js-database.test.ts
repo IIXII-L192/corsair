@@ -749,6 +749,41 @@ describe('postgres-js database integration', () => {
 			},
 		);
 
+		gated()(
+			'entity upsert merges partial updates without wiping fields',
+			async () => {
+				const orm = createCorsairOrm({ db: kdb });
+				await createIntegrationAndAccount(kdb, 'slack');
+
+				await orm.entities.upsertByEntityId({
+					accountId: 'slack-account',
+					entityType: 'issues',
+					entityId: '42',
+					version: '1.0.0',
+					data: {
+						id: 42,
+						title: 'Bug',
+						user: { login: 'alice', id: 1 },
+					},
+				});
+
+				const updated = await orm.entities.upsertByEntityId({
+					accountId: 'slack-account',
+					entityType: 'issues',
+					entityId: '42',
+					version: '1.0.0',
+					data: { id: 42, title: 'Bug (updated)' },
+				});
+
+				expect((updated.data as { title?: string }).title).toBe(
+					'Bug (updated)',
+				);
+				expect((updated.data as { user?: { login: string } }).user?.login).toBe(
+					'alice',
+				);
+			},
+		);
+
 		gated()('filters with in/like operators', async () => {
 			const orm = createCorsairOrm({ db: kdb });
 			await createIntegrationAndAccount(kdb, 'slack');

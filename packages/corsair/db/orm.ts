@@ -15,6 +15,7 @@ import {
 } from './';
 import type { CorsairDatabase, CorsairKyselyDatabase } from './kysely/database';
 import { createKyselyEntityClient } from './kysely/orm';
+import { mergeEntityDataFromUnknown } from './merge-entity-data';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core Table Types
@@ -591,7 +592,11 @@ function createEntitiesClient(
 				entity_id: entityId,
 			});
 			if (existing) {
-				return (await base.update(existing.id, { version, data }))!;
+				const merged = mergeEntityDataFromUnknown(
+					existing.data,
+					(data ?? {}) as Record<string, unknown>,
+				);
+				return (await base.update(existing.id, { version, data: merged }))!;
 			}
 			return base.create({
 				account_id: accountId,
